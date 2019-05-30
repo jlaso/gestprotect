@@ -1,0 +1,303 @@
+from time import time, sleep
+from PyQt5 import QtCore, QtGui, QtWidgets, Qt
+from db import *
+from PyQt5.QtCore import QSettings
+from PyQt5.QtCore import Qt
+from PyQt5.QtSql import QSqlDatabase, QSqlQuery
+from PyQt5.QtGui import QIcon, QPixmap
+from PyQt5.QtWidgets import (
+    QWidget,
+    QSplashScreen,
+    QDialog,
+    QHBoxLayout,
+    QVBoxLayout,
+    QLabel,
+    QComboBox,
+    QApplication,
+    QAction,
+    QMainWindow,
+    QStackedWidget,
+    QFormLayout,
+    QLineEdit,
+)
+from config_dialog import ConfigDialog
+from settings import settings
+
+app = None
+
+MAIN_MENU_WIN = 0
+ACCOUNTS_WIN = 1
+DIARY_WIN = 2
+BALANCE_WIN = 3
+CPPGG_WIN = 4
+CONFIG_WIN = 5
+
+
+def convert(in_data):
+    def cvt(data):
+        try:
+            return ast.literal_eval(data)
+        except Exception:
+            return str(data)
+
+    return tuple(map(cvt, in_data))
+
+
+class AccountTableWidget(QtWidgets.QTableWidget):
+    cellEditingStarted = QtCore.pyqtSignal(int, int)
+
+    def edit(self, index, trigger, event):
+        result = super(AccountTableWidget, self).edit(index, trigger, event)
+        if result:
+            self.cellEditingStarted.emit(index.row(), index.column())
+        return result
+
+
+class MainWindow(QMainWindow):
+    accountsTable = None
+
+    def __init__(self, *args, **kwargs):
+        super(MainWindow, self).__init__(*args, **kwargs)
+        self.resize(800, 600)
+        self.window = 0
+        self.last_edit = None
+        self.config_dialog = ConfigDialog()
+
+        self._translate = QtCore.QCoreApplication.translate
+
+        self.setWindowTitle(self._translate("MainWindow", "Contabilidad Asociación"))
+        central_widget = QtWidgets.QWidget(self)
+        central_widget.setObjectName("central_widget")
+        # size policy
+        size_policy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Maximum, QtWidgets.QSizePolicy.Maximum)
+        size_policy.setHorizontalStretch(0)
+        size_policy.setVerticalStretch(0)
+        size_policy.setHeightForWidth(central_widget.sizePolicy().hasHeightForWidth())
+        central_widget.setSizePolicy(size_policy)
+
+        self.statusBar = QtWidgets.QStatusBar(self)
+        self.statusBar.setObjectName("statusBar")
+        self.setStatusBar(self.statusBar)
+
+        # stacked windows
+        self.Stack = QStackedWidget(central_widget)
+        self.Stack.setGeometry(self.geometry())
+        self.Stack.setObjectName("Stack")
+        self.main_menu_stack = self.main_menu_view()
+        self.Stack.addWidget(self.main_menu_stack)
+        self.Stack.addWidget(self.accounts_view())
+
+        self.setCentralWidget(central_widget)
+        self.display(MAIN_MENU_WIN)
+        self.show()
+        self.db = DB()
+        self.show_sb_msg("Ready...")
+
+    @staticmethod
+    def add_to_table(table, data, editable=None):
+        row_position = table.rowCount()
+        table.insertRow(row_position)
+        table.is_not_edit = True
+        for i, column in enumerate(data):
+            item = QtWidgets.QTableWidgetItem(str(column))
+            if i in editable:
+                item.setFlags(QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsEditable | QtCore.Qt.ItemIsEnabled)
+            else:
+                item.setFlags(QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsEnabled)
+            table.setItem(row_position, i, item)
+        table.is_not_edit = False
+
+    def show_sb_msg(self, msg):
+        self.statusBar.showMessage(msg)
+
+    def gen_big_button(self, from_widget, to_layout, btn_name, text, row, col,
+                       min_w=0, min_h=100, point_size=27, weight=75, bold=True,
+                       color="#1976D2", rows=1, cols=1):
+        btn = QtWidgets.QPushButton(from_widget)
+        btn.setMinimumSize(QtCore.QSize(min_w, min_h))
+        font = QtGui.QFont()
+        font.setPointSize(point_size)
+        font.setBold(bold)
+        font.setWeight(weight)
+        btn.setFont(font)
+        btn.setStyleSheet("QPushButton { color: %s; }" % color)
+        btn.setObjectName(btn_name)
+        btn.setText(self._translate(btn_name, text))
+        # btn.setShortcut(_translate("MainWindow", "D"))
+        to_layout.addWidget(btn, row, col, rows, cols)
+        return btn
+
+    def gen_little_button(self, from_widget, to_layout, btn_name, text, row, col,
+                          min_w=0, min_h=50, point_size=17, weight=55, bold=False,
+                          color="#1976D2", rows=1, cols=1):
+        btn = QtWidgets.QPushButton(from_widget)
+        btn.setMinimumSize(QtCore.QSize(min_w, min_h))
+        font = QtGui.QFont()
+        font.setPointSize(point_size)
+        font.setBold(bold)
+        font.setWeight(weight)
+        btn.setFont(font)
+        btn.setStyleSheet("QPushButton { color: %s; }" % color)
+        btn.setObjectName(btn_name)
+        btn.setText(self._translate(btn_name, text))
+        # btn.setShortcut(_translate("MainWindow", "D"))
+        to_layout.addWidget(btn, row, col, rows, cols)
+        return btn
+
+    def create_account(self):
+        # print("btn pressed ", self.name_edit.text())
+        try:
+            self.db.add_account(
+                id=self.code_edit.text(),
+                name=self.name_edit.text(),
+            )
+        except Exception as e:
+            print(repr(e))
+            self.show_sb_msg("DB Insert Error")
+
+    def accounts_view(self):
+        page = QWidget()
+
+        layout = QVBoxLayout()
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(6)
+        layout.setObjectName("layout")
+        page.setLayout(layout)
+
+        size = page.size()
+        w = size.width()
+        h = size.height()
+
+        form = QWidget(page)
+        form.setGeometry(QtCore.QRect(20, 20, w - 40, 100))
+        # form.setObjectName("form")
+        form_layout = QtWidgets.QFormLayout(form)
+        form_layout.setContentsMargins(20, 20, 20, 20)
+        form_layout.setObjectName("form_layout")
+
+        code_label = QtWidgets.QLabel(form)
+        code_label.setObjectName("code_label")
+        code_label.setText(self._translate("Accounts", "Cuenta"))
+        form_layout.setWidget(0, QtWidgets.QFormLayout.LabelRole, code_label)
+        self.code_edit = QtWidgets.QLineEdit(form)
+        self.code_edit.setObjectName("code_edit")
+        form_layout.setWidget(0, QtWidgets.QFormLayout.FieldRole, self.code_edit)
+        name_label = QtWidgets.QLabel(form)
+        name_label.setObjectName("name_label")
+        name_label.setText(self._translate("Accounts", "Nombre"))
+        form_layout.setWidget(1, QtWidgets.QFormLayout.LabelRole, name_label)
+        self.name_edit = QtWidgets.QLineEdit(form)
+        self.name_edit.setObjectName("name_edit")
+        form_layout.setWidget(1, QtWidgets.QFormLayout.FieldRole, self.name_edit)
+        add_btn = QtWidgets.QPushButton(form)
+        add_btn.setObjectName("add_btn")
+        add_btn.setText(self._translate("Accounts", "Crear"))
+        form_layout.setWidget(2, QtWidgets.QFormLayout.FieldRole, add_btn)
+        add_btn.released.connect(self.create_account)
+
+        self.accountsTable = AccountTableWidget(page)
+        self.accountsTable.setGeometry(QtCore.QRect(0, 100, w, h - 100))
+        self.accountsTable.setRowCount(0)
+        self.accountsTable.setColumnCount(2)
+        self.accountsTable.setHorizontalHeaderLabels(("Cuenta", "Nombre"))
+        self.accountsTable.horizontalHeaderItem(0).setTextAlignment(QtCore.Qt.AlignHCenter)
+        self.accountsTable.setObjectName("accountsTable")
+        self.accountsTable.cellEditingStarted.connect(self.edit_account)
+        self.accountsTable.cellChanged.connect(self.end_edit_account)
+
+        table_layout = QVBoxLayout(self.accountsTable)
+        table_layout.setContentsMargins(20, 20, 20, 20)
+        table_layout.setObjectName("table_layout")
+
+        return page
+
+    def main_menu_view(self):
+        page = QWidget()
+        vert_layout = QtWidgets.QVBoxLayout()
+        vert_layout.setContentsMargins(51, 51, 51, 51)
+        vert_layout.setSpacing(6)
+        vert_layout.setObjectName("vert_layout")
+
+        grid_layout = QtWidgets.QGridLayout()
+        grid_layout.setSpacing(6)
+        grid_layout.setObjectName("grid_layout")
+
+        spacer_item_top = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
+        grid_layout.addItem(spacer_item_top, 0, 0, 1, 1)
+        account_button = self.gen_big_button(page, grid_layout, "account_button", "Cuentas", 1, 0)
+        diary_button = self.gen_big_button(page, grid_layout, "diary_button", "Diario", 1, 1)
+        balance_button = self.gen_big_button(page, grid_layout, "balance_button", "Balance", 2, 0)
+        cppgg_button = self.gen_big_button(page, grid_layout, "cppgg_button", "C.PPyGG", 2, 1)
+        exit_button = self.gen_big_button(page, grid_layout, "exit_button", "Salir", 3, 0, cols=2)
+        spacer_item_bottom = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
+        grid_layout.addItem(spacer_item_bottom, 4, 0, 1, 1)
+        config_button = self.gen_little_button(page, grid_layout, "config_button", "Configuración", 6, 0)
+
+        exit_button.pressed.connect(lambda: app.quit())
+        account_button.pressed.connect(lambda: self.display(ACCOUNTS_WIN))
+        diary_button.pressed.connect(lambda: self.display(DIARY_WIN))
+        balance_button.pressed.connect(lambda: self.display(BALANCE_WIN))
+        cppgg_button.pressed.connect(lambda: self.display(CPPGG_WIN))
+        config_button.pressed.connect(lambda: self.config_dialog.show())
+
+        vert_layout.addLayout(grid_layout)
+        page.setLayout(vert_layout)
+
+        return page
+
+    def edit_account(self, row, col):
+        data = self.accountsTable.cellWidget(row, col)
+        self.last_edit = data.text()
+        # row = mi.row()
+        # column = mi.column()
+        print("edit_account %s %s" % (row, col))
+
+    def end_edit_account(self, row, col):
+        if self.accountsTable.is_not_edit:
+            pass
+        else:
+            data = self.accountsTable.cellWidget(row, col)
+            print("end_edit_account %d %d" % (row, col))
+            print(data.text())
+
+    def display(self, i):
+        self.window = i
+        self.Stack.setCurrentIndex(i)
+        if i == CONFIG_WIN:
+            ConfigDialog().show()
+
+        if i == ACCOUNTS_WIN:
+            self.accountsTable.setRowCount(0)
+            accounts = self.db.get_accounts()
+            for account in accounts:
+                self.add_to_table(self.accountsTable,
+                                  convert(account.values()),
+                                  editable=[1])
+            self.show_sb_msg("Accounts read Done. %d" % len(accounts))
+
+    def keyPressEvent(self, e):
+        if e.key() == QtCore.Qt.Key_Escape:
+            if self.window == 0:
+                self.close()
+            else:
+                self.display(0)
+
+
+if __name__ == "__main__":
+    import sys
+
+    app = QtWidgets.QApplication(sys.argv)
+    start = time()
+    splash = QSplashScreen(QPixmap("splash-screen.png"))
+    splash.show()
+    if time() - start < 1:
+        sleep(1)
+
+    menu_window = MainWindow()
+    menu_window.show()
+    splash.finish(menu_window)
+
+    if not settings.value('DB_SERVER'):
+        menu_window.config_dialog.show()
+
+    sys.exit(app.exec_())
