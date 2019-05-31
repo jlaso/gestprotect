@@ -1,6 +1,6 @@
 from time import time, sleep
 from PyQt5 import QtCore, QtGui, QtWidgets, Qt
-from db import *
+from db import db
 from PyQt5.QtCore import QSettings
 from PyQt5.QtCore import Qt
 from PyQt5.QtSql import QSqlDatabase, QSqlQuery
@@ -90,7 +90,6 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(central_widget)
         self.display(MAIN_MENU_WIN)
         self.show()
-        self.db = DB()
         self.show_sb_msg("Ready...")
 
     @staticmethod
@@ -147,7 +146,7 @@ class MainWindow(QMainWindow):
     def create_account(self):
         # print("btn pressed ", self.name_edit.text())
         try:
-            self.db.add_account(
+            db.add_account(
                 id=self.code_edit.text(),
                 name=self.name_edit.text(),
             )
@@ -268,7 +267,7 @@ class MainWindow(QMainWindow):
 
         if i == ACCOUNTS_WIN:
             self.accountsTable.setRowCount(0)
-            accounts = self.db.get_accounts()
+            accounts = db.get_accounts()
             for account in accounts:
                 self.add_to_table(self.accountsTable,
                                   convert(account.values()),
@@ -292,6 +291,8 @@ if __name__ == "__main__":
     splash.show()
     if time() - start < 1:
         sleep(1)
+
+    db.open()
 
     menu_window = MainWindow()
     menu_window.show()

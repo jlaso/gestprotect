@@ -4,20 +4,23 @@ from settings import settings
 
 class DB:
     SCHEMA = "public"
+    db = None
 
-    def __init__(self):
+    def open(self):
         kind = settings.value('DB_KIND', 'MySQL')
         server = settings.value('DB_SERVER', 'localhost')
-        db = settings.value('DB_NAME', 'db')
+        _db = settings.value('DB_NAME', 'db')
         user = settings.value('DB_USER', 'user')
         password = settings.value('DB_PASSWORD', 'psw')
         kind = 'QPSQL' if kind != 'MySQL' else 'QMYSQL'
+        print(kind, server, _db, user, password)
         self.db = QSqlDatabase.addDatabase(kind)
         self.db.setHostName(server)
-        self.db.setDatabaseName(db)
+        self.db.setDatabaseName(_db)
         self.db.setUserName(user)
         self.db.setPassword(password)
-        self.db.open()
+        r = self.db.open()
+        print("db.open result", r)
 
     def last_error(self):
         return self.db.lastError()
@@ -53,3 +56,6 @@ class DB:
         query.bindValue(":id", _id)
         query.bindValue(":name", _name)
         query.exec_()
+
+
+db = DB()

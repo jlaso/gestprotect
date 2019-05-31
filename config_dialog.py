@@ -2,6 +2,11 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtWidgets import QDialog
 from settings import settings, save_settings
 
+kind_of_servers = {
+    'MySQL': 'QMYSQL',
+    'Postgres': 'QPSQL',
+}
+
 
 class ConfigDialog(QDialog):
     def __init__(self, *args, **kwargs):
@@ -26,8 +31,8 @@ class ConfigDialog(QDialog):
         self.formLayout.setWidget(0, QtWidgets.QFormLayout.LabelRole, self.kindLabel)
         self.kindCombo = QtWidgets.QComboBox(self.formLayoutWidget)
         self.kindCombo.setObjectName("kindCombo")
-        self.kindCombo.addItem("MySQL")
-        self.kindCombo.addItem("Postgres")
+        for k in kind_of_servers:
+            self.kindCombo.addItem(k)
         self.formLayout.setWidget(0, QtWidgets.QFormLayout.FieldRole, self.kindCombo)
 
         # url of the DB server
@@ -72,6 +77,7 @@ class ConfigDialog(QDialog):
 
         self.retranslateUi()
 
+        self.kindCombo.setCurrentIndex(list(kind_of_servers.keys()).index(settings.value('DB_KIND')))
         self.serverEdit.setText(settings.value('DB_SERVER'))
         self.portEdit.setText(settings.value('DB_PORT'))
         self.dbEdit.setText(settings.value('DB_NAME'))
@@ -84,6 +90,7 @@ class ConfigDialog(QDialog):
 
     def accept(self):
         print("OK")
+        settings.setValue("DB_KIND", self.kindCombo.currentText())
         settings.setValue("DB_SERVER", self.serverEdit.text())
         settings.setValue("DB_PORT", self.portEdit.text())
         settings.setValue("DB_NAME", self.dbEdit.text())
