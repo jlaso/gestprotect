@@ -77,7 +77,11 @@ class ConfigDialog(QDialog):
 
         self.retranslateUi()
 
-        self.kindCombo.setCurrentIndex(list(kind_of_servers.keys()).index(settings.value('DB_KIND')))
+        try:
+            self.kindCombo.setCurrentIndex(list(kind_of_servers.keys()).index(settings.value('DB_KIND')))
+        except ValueError:
+            pass
+
         self.serverEdit.setText(settings.value('DB_SERVER'))
         self.portEdit.setText(settings.value('DB_PORT'))
         self.dbEdit.setText(settings.value('DB_NAME'))

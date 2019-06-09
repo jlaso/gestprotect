@@ -292,13 +292,11 @@ if __name__ == "__main__":
     if time() - start < 1:
         sleep(1)
 
-    db.open()
-
     menu_window = MainWindow()
     menu_window.show()
     splash.finish(menu_window)
 
-    if not settings.value('DB_SERVER'):
+    if not settings.value('DB_SERVER') or not db.open():
         menu_window.config_dialog.show()
 
     sys.exit(app.exec_())

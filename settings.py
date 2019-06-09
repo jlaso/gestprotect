@@ -1,7 +1,8 @@
 from PyQt5.QtCore import QSettings
 
 
-SETTINGS_NAME = 'asoconta'
+# SETTINGS_NAME = 'asoconta'
+SETTINGS_NAME = 'asoconta_localhost'
 
 
 def get_settings():

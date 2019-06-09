@@ -1,0 +1,6 @@
+psycopg2==2.7.7
+sqlalchemy
+PyQt5
+pyqtgraph
+qtalchemy==0.8.3
+pony_up==0.1.0
