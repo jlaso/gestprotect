@@ -3,7 +3,9 @@ from pony.orm import *
 
 
 db = Database()
-db.bind(provider='sqlite', filename='database.sqlite', create_db=True)
+
+D = True
+H = False
 
 
 class Animal(db.Entity):
@@ -11,14 +13,14 @@ class Animal(db.Entity):
     name = Optional(str, 40)
     birth_date = Optional(date)
     chip = Optional(str)
-    expense_account = Optional(int, size=24)
-    income_account = Optional(int, size=24)
+    expense_account = Optional(int, size=64)
+    income_account = Optional(int, size=64)
     male = Optional(bool)
     animal_movements = Set('AnimalMovement')
 
 
 class Account(db.Entity):
-    id = PrimaryKey(int, auto=True)
+    id = PrimaryKey(int)
     name = Optional(str, 100)
     accountings = Set('Accounting')
 
@@ -42,20 +44,20 @@ class Entry(db.Entity):
 class Member(db.Entity):
     id = PrimaryKey(int, auto=True)
     name = Required(str, 100)
-    member_account = Optional(int, size=24)
+    member_account = Optional(int, size=64)
 
 
 class Setting(db.Entity):
-    id = Required(int)
-    name = Required(str)
+    id = PrimaryKey(int, auto=True)
+    name = Required(str, unique=True)
     value = Required(str)
-    PrimaryKey(id, name)
 
 
 class AccountingType(db.Entity):
     id = PrimaryKey(int, auto=True)
     name = Required(str, 50)
     accountings = Set(Accounting)
+    entry_template_lines = Set('EntryTemplateLine')
 
 
 class MovementType(db.Entity):
@@ -81,24 +83,18 @@ class ThirdParty(db.Entity):
     address = Optional(str)
 
 
-sql_debug(True)
-db.generate_mapping(create_tables=True)
+class EntryTemplate(db.Entity):
+    id = PrimaryKey(int, auto=True)
+    desc = Optional(str, 150)
+    entry_template_lines = Set('EntryTemplateLine')
 
 
-with db_session:
-    if not MovementType[1]:
-        MovementType(id=1, name="Abandono")
-    if not MovementType[2]:
-        MovementType(id=2, name="Recuperación")
-    if not MovementType[3]:
-        MovementType(id=3, name="Acogida")
-    if not MovementType[4]:
-        MovementType(id=4, name="Adopción")
-    if not MovementType[5]:
-        MovementType(id=5, name="Nacimiento")
-    if not MovementType[6]:
-        MovementType(id=6, name="Fallecimiento")
-    if not MovementType[7]:
-        MovementType(id=7, name="Entregado Autoridades")
-    if not MovementType[8]:
-        MovementType(id=8, name="Recogido")
+class EntryTemplateLine(db.Entity):
+    id = PrimaryKey(int, auto=True)
+    entry_template = Required(EntryTemplate)
+    sign = Optional(bool)
+    account = Optional(int, size=64)
+    accounting_type = Required(AccountingType)
+
+
+
