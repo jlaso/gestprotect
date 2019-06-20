@@ -5,6 +5,7 @@ from settings import settings, save_settings
 kind_of_servers = {
     'MySQL': 'QMYSQL',
     'Postgres': 'QPSQL',
+    'sqlite': 'QSQLITE',
 }
 
 

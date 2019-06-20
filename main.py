@@ -1,9 +1,9 @@
 from time import time, sleep
 from PyQt5 import QtCore, QtGui, QtWidgets, Qt
-from db import db
-from PyQt5.QtCore import QSettings
-from PyQt5.QtCore import Qt
-from PyQt5.QtSql import QSqlDatabase, QSqlQuery
+# from db import db
+# from PyQt5.QtCore import QSettings
+# from PyQt5.QtCore import Qt
+# from PyQt5.QtSql import QSqlDatabase, QSqlQuery
 from PyQt5.QtGui import QIcon, QPixmap
 from PyQt5.QtWidgets import (
     QWidget,
@@ -22,6 +22,9 @@ from PyQt5.QtWidgets import (
 )
 from config_dialog import ConfigDialog
 from settings import settings
+from models import *
+from accounts import accounts_dialog
+from tools import convert, add_to_table
 
 app = None
 
@@ -32,15 +35,8 @@ BALANCE_WIN = 3
 CPPGG_WIN = 4
 CONFIG_WIN = 5
 
-
-def convert(in_data):
-    def cvt(data):
-        try:
-            return ast.literal_eval(data)
-        except Exception:
-            return str(data)
-
-    return tuple(map(cvt, in_data))
+WIDTH = 800
+HEIGHT = 600
 
 
 class AccountTableWidget(QtWidgets.QTableWidget):
@@ -58,7 +54,7 @@ class MainWindow(QMainWindow):
 
     def __init__(self, *args, **kwargs):
         super(MainWindow, self).__init__(*args, **kwargs)
-        self.resize(800, 600)
+        self.resize(WIDTH, HEIGHT)
         self.window = 0
         self.last_edit = None
         self.config_dialog = ConfigDialog()
@@ -91,20 +87,6 @@ class MainWindow(QMainWindow):
         self.display(MAIN_MENU_WIN)
         self.show()
         self.show_sb_msg("Ready...")
-
-    @staticmethod
-    def add_to_table(table, data, editable=None):
-        row_position = table.rowCount()
-        table.insertRow(row_position)
-        table.is_not_edit = True
-        for i, column in enumerate(data):
-            item = QtWidgets.QTableWidgetItem(str(column))
-            if i in editable:
-                item.setFlags(QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsEditable | QtCore.Qt.ItemIsEnabled)
-            else:
-                item.setFlags(QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsEnabled)
-            table.setItem(row_position, i, item)
-        table.is_not_edit = False
 
     def show_sb_msg(self, msg):
         self.statusBar.showMessage(msg)
@@ -158,14 +140,15 @@ class MainWindow(QMainWindow):
         page = QWidget()
 
         layout = QVBoxLayout()
-        layout.setContentsMargins(20, 20, 20, 20)
+        # layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(6)
         layout.setObjectName("layout")
         page.setLayout(layout)
 
-        size = page.size()
-        w = size.width()
-        h = size.height()
+        # size = page.size()
+        w = WIDTH  # size.width()
+        h = HEIGHT  # size.height()
+        print("size is %dx%d" % (w, h))
 
         form = QWidget(page)
         form.setGeometry(QtCore.QRect(20, 20, w - 40, 100))
@@ -195,10 +178,12 @@ class MainWindow(QMainWindow):
         add_btn.released.connect(self.create_account)
 
         self.accountsTable = AccountTableWidget(page)
-        self.accountsTable.setGeometry(QtCore.QRect(0, 100, w, h - 100))
+        self.accountsTable.setGeometry(QtCore.QRect(20, 100, w - 40, h - 100))
         self.accountsTable.setRowCount(0)
         self.accountsTable.setColumnCount(2)
         self.accountsTable.setHorizontalHeaderLabels(("Cuenta", "Nombre"))
+        header = self.accountsTable.horizontalHeader()
+        header.setSectionResizeMode(1, QtWidgets.QHeaderView.Stretch)
         self.accountsTable.horizontalHeaderItem(0).setTextAlignment(QtCore.Qt.AlignHCenter)
         self.accountsTable.setObjectName("accountsTable")
         self.accountsTable.cellEditingStarted.connect(self.edit_account)
@@ -228,7 +213,8 @@ class MainWindow(QMainWindow):
         balance_button = self.gen_big_button(page, grid_layout, "balance_button", "Balance", 2, 0)
         cppgg_button = self.gen_big_button(page, grid_layout, "cppgg_button", "C.PPyGG", 2, 1)
         exit_button = self.gen_big_button(page, grid_layout, "exit_button", "Salir", 3, 0, cols=2)
-        spacer_item_bottom = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
+        spacer_item_bottom = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum,
+                                                   QtWidgets.QSizePolicy.Expanding)
         grid_layout.addItem(spacer_item_bottom, 4, 0, 1, 1)
         config_button = self.gen_little_button(page, grid_layout, "config_button", "Configuración", 6, 0)
 
@@ -249,15 +235,20 @@ class MainWindow(QMainWindow):
         self.last_edit = data.text()
         # row = mi.row()
         # column = mi.column()
-        print("edit_account %s %s" % (row, col))
+        # id_ = self.accountsTable.item(row, 0)
+        # print("edit_account %s %s" % (row, col))
+        # print(repr(id_.text()))
 
     def end_edit_account(self, row, col):
         if self.accountsTable.is_not_edit:
             pass
         else:
             data = self.accountsTable.cellWidget(row, col)
-            print("end_edit_account %d %d" % (row, col))
-            print(data.text())
+            # print("end_edit_account %d %d" % (row, col))
+            _name = data.text()
+            _id = self.accountsTable.item(row, 0).text()
+            # print(_id, _name)
+            change_account(id=_id, name=_name)
 
     def display(self, i):
         self.window = i
@@ -267,12 +258,18 @@ class MainWindow(QMainWindow):
 
         if i == ACCOUNTS_WIN:
             self.accountsTable.setRowCount(0)
-            accounts = db.get_accounts()
+            # accounts = db.get_accounts()
+            accounts = get_accounts()
             for account in accounts:
-                self.add_to_table(self.accountsTable,
-                                  convert(account.values()),
-                                  editable=[1])
+                add_to_table(self.accountsTable,
+                             convert(account.values()),
+                             editable=[1])
             self.show_sb_msg("Accounts read Done. %d" % len(accounts))
+            return
+
+        if i == DIARY_WIN:
+            accounts_dialog(self, group=7)
+            self.display(MAIN_MENU_WIN)
 
     def keyPressEvent(self, e):
         if e.key() == QtCore.Qt.Key_Escape:
@@ -296,7 +293,21 @@ if __name__ == "__main__":
     menu_window.show()
     splash.finish(menu_window)
 
-    if not settings.value('DB_SERVER') or not db.open():
+    if not settings.value('DB_SERVER'):  # or not db.open():
         menu_window.config_dialog.show()
+
+    kind = settings.value('DB_KIND', 'sqlite')
+    server = settings.value('DB_SERVER', 'database.sqlite')
+    _db = settings.value('DB_NAME', None)
+    user = settings.value('DB_USER', None)
+    password = settings.value('DB_PASSWORD', None)
+
+    if kind == 'sqlite':
+        db.bind(provider='sqlite', filename=server, create_db=True)
+    else:
+        db.bind(provider=kind.lower(), user=user, password=password, host=server, database=_db)
+
+    # sql_debug(True)
+    db.generate_mapping(create_tables=True)
 
     sys.exit(app.exec_())
