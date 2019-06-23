@@ -23,7 +23,7 @@ from PyQt5.QtWidgets import (
 from config_dialog import ConfigDialog
 from settings import settings
 from models import *
-from accounts import accounts_dialog
+from accounts import accounts_dialog, AccountTableWidget
 from tools import convert, add_to_table
 
 app = None
@@ -37,16 +37,6 @@ CONFIG_WIN = 5
 
 WIDTH = 800
 HEIGHT = 600
-
-
-class AccountTableWidget(QtWidgets.QTableWidget):
-    cellEditingStarted = QtCore.pyqtSignal(int, int)
-
-    def edit(self, index, trigger, event):
-        result = super(AccountTableWidget, self).edit(index, trigger, event)
-        if result:
-            self.cellEditingStarted.emit(index.row(), index.column())
-        return result
 
 
 class MainWindow(QMainWindow):
@@ -208,15 +198,21 @@ class MainWindow(QMainWindow):
 
         spacer_item_top = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
         grid_layout.addItem(spacer_item_top, 0, 0, 1, 1)
-        account_button = self.gen_big_button(page, grid_layout, "account_button", "Cuentas", 1, 0)
-        diary_button = self.gen_big_button(page, grid_layout, "diary_button", "Diario", 1, 1)
-        balance_button = self.gen_big_button(page, grid_layout, "balance_button", "Balance", 2, 0)
-        cppgg_button = self.gen_big_button(page, grid_layout, "cppgg_button", "C.PPyGG", 2, 1)
-        exit_button = self.gen_big_button(page, grid_layout, "exit_button", "Salir", 3, 0, cols=2)
+        account_button = self.gen_big_button(page, grid_layout, "account_button",
+                                             self._translate("menu", "Accounts"), 1, 0)
+        diary_button = self.gen_big_button(page, grid_layout, "diary_button",
+                                           self._translate("menu", "Accounting journal"), 1, 1)
+        balance_button = self.gen_big_button(page, grid_layout, "balance_button",
+                                             self._translate("menu", "Balance sheet"), 2, 0)
+        cppgg_button = self.gen_big_button(page, grid_layout, "cppgg_button",
+                                           self._translate("menu", "Profit and loss account"), 2, 1)
+        exit_button = self.gen_big_button(page, grid_layout, "exit_button",
+                                          self._translate("menu", "Exit"), 3, 0, cols=2)
         spacer_item_bottom = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum,
                                                    QtWidgets.QSizePolicy.Expanding)
         grid_layout.addItem(spacer_item_bottom, 4, 0, 1, 1)
-        config_button = self.gen_little_button(page, grid_layout, "config_button", "Configuración", 6, 0)
+        config_button = self.gen_little_button(page, grid_layout, "config_button",
+                                               self._translate("menu", "Setup"), 6, 0)
 
         exit_button.pressed.connect(lambda: app.quit())
         account_button.pressed.connect(lambda: self.display(ACCOUNTS_WIN))
@@ -288,6 +284,10 @@ if __name__ == "__main__":
     splash.show()
     if time() - start < 1:
         sleep(1)
+
+    translator = QtCore.QTranslator()
+    translator.load("translations/es_ES.qm")
+    app.installTranslator(translator)
 
     menu_window = MainWindow()
     menu_window.show()
