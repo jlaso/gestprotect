@@ -264,7 +264,7 @@ class MainWindow(QMainWindow):
             return
 
         if i == DIARY_WIN:
-            accounts_dialog(self, group=7)
+            print("value returned from accounts dialog is", accounts_dialog(self, group=7))
             self.display(MAIN_MENU_WIN)
 
     def keyPressEvent(self, e):

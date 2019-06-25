@@ -14,6 +14,7 @@ from PyQt5.QtWidgets import (
     QStackedWidget,
     QFormLayout,
     QLineEdit,
+    QAbstractItemView,
 )
 
 from models import get_accounts
@@ -66,7 +67,7 @@ def accounts_dialog(parent_, group=None, width=640, height=480):
     form_layout.setWidget(1, QtWidgets.QFormLayout.FieldRole, search_edit)
 
     t = QtWidgets.QTableWidget(my_dialog)
-    t.setGeometry(QtCore.QRect(20, 100, width - 40, height))
+    t.setGeometry(QtCore.QRect(20, 100, width - 40, height - 150))
     t.setRowCount(0)
     t.setColumnCount(2)
     t.setHorizontalHeaderLabels((
@@ -77,6 +78,14 @@ def accounts_dialog(parent_, group=None, width=640, height=480):
     header.setSectionResizeMode(1, QtWidgets.QHeaderView.Stretch)
     t.horizontalHeaderItem(0).setTextAlignment(QtCore.Qt.AlignHCenter)
     t.setObjectName("t")
+    t.setSelectionBehavior(QAbstractItemView.SelectRows)
+
+    ok_btn = QtWidgets.QPushButton(my_dialog)
+    ok_btn.setGeometry(QtCore.QRect(200, height - 40, width - 400, 40))
+    ok_btn.setObjectName("ok_btn")
+    ok_btn.setText(_translate("Accounts", "Select"))
+    # form_layout.setWidget(2, QtWidgets.QFormLayout.FieldRole, ok_btn)
+    ok_btn.released.connect(my_dialog.accept)
 
     def updt_srch_value(strg):
         def fltr(srch, group):
@@ -101,11 +110,16 @@ def accounts_dialog(parent_, group=None, width=640, height=480):
     # for account in accounts:
     #     add_to_table(t, convert(account.values()))
 
-    my_dialog.exec_()
+    if my_dialog.exec_():
+        print("OK", t.currentRow())
+        if t.currentRow() > -1:
+            print(t.item(t.currentRow(), 0).text())
+            return t.item(t.currentRow(), 0).text()
 
 
 def pull_accounts_to_table(tbl, lbd=None):
     tbl.setRowCount(0)
     accounts = get_accounts(lbd)
     for account in accounts:
-        add_to_table(tbl, convert(account.values()))
+        add_to_table(tbl, convert(account.values()),
+                     selectable=lambda d: len(str(d[0])) > 2)

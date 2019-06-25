@@ -10,16 +10,20 @@ def convert(in_data):
     return tuple(map(cvt, in_data))
 
 
-def add_to_table(table, data, editable=None):
+def add_to_table(table, data, editable=None, selectable=None):
     editable = [] if editable is None else editable
     row_position = table.rowCount()
     table.insertRow(row_position)
     table.is_not_edit = True
     for i, column in enumerate(data):
         item = QtWidgets.QTableWidgetItem(str(column))
+        flags = 0
+        if selectable is None or selectable(data):
+            flags |= QtCore.Qt.ItemIsSelectable
         if i in editable:
-            item.setFlags(QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsEditable | QtCore.Qt.ItemIsEnabled)
+            flags |= QtCore.Qt.ItemIsEditable | QtCore.Qt.ItemIsEnabled
         else:
-            item.setFlags(QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsEnabled)
+            flags |= QtCore.Qt.ItemIsEnabled
+        item.setFlags(flags)
         table.setItem(row_position, i, item)
     table.is_not_edit = False
